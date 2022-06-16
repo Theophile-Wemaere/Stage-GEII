@@ -85,9 +85,9 @@ namespace JeVoisDecoder
                         int pos = 0;
 
                         ArucoLutElement lutElement = new ArucoLutElement();
-                        lutElement.xField = int.Parse(values[pos++]);
-                        lutElement.yField = int.Parse(values[pos++]);
-                        lutElement.thetaField = int.Parse(values[pos++]);
+                        lutElement.xField = double.Parse(values[pos++].Replace(".", ","));
+                        lutElement.yField = double.Parse(values[pos++].Replace(".", ","));
+                        lutElement.thetaField = double.Parse(values[pos++]);
 
                         if (values.Length == 11) // detail frame
                         {
@@ -114,8 +114,8 @@ namespace JeVoisDecoder
                             lutElement.yMeasured = int.Parse(values[pos++]);
                             lutElement.W = int.Parse(values[pos++]);
                             lutElement.H = int.Parse(values[pos++]);
-                            lutElement.xMeasured += lutElement.W / 2;
-                            lutElement.yMeasured += lutElement.H / 2;
+                            //lutElement.xMeasured += lutElement.W / 2;
+                            //lutElement.yMeasured += lutElement.H / 2;
                         }
 
                         ArucoLut.Add(lutElement);
@@ -309,7 +309,7 @@ namespace JeVoisDecoder
                 case 'N':
                     double Xcalculated = xMeasured;
                     double Ycalculated = yMeasured;
-                    log = Xreel + ";" + Yreel + ";" + Theta + ";" + Xcalculated.ToString("N0") + ";" + Ycalculated.ToString("N0") + ";" + X + ";" + Y + ";" + W + ";" + H;
+                    log = Xreel + ";" + Yreel + ";" + Theta + ";" + Xcalculated.ToString("N0") + ";" + Ycalculated.ToString("N0") + ";" + W + ";" + H;
                     break;
             }
 
