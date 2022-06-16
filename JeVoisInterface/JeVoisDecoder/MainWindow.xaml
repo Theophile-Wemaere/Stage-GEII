@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JeVoisDecoder"
         mc:Ignorable="d"
-        Title="MainWindow" Height="377" Width="471" Background="White">
+        Title="MainWindow" Height="377" Width="471" Background="Black">
     <DockPanel Grid.Column="1" LastChildFill="False" Grid.Row="1">
         <Menu DockPanel.Dock="Top" >
             <MenuItem Header="Analyze" Click="Analyze_Click"></MenuItem>
@@ -26,19 +26,23 @@
                 <ColumnDefinition Width="30"/>
                 <ColumnDefinition/>
                 <ColumnDefinition Width="30"/>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="30"/>
             </Grid.ColumnDefinitions>
 
-            <Button x:Name="button" Content="Write" Foreground="White" Grid.Column="3" Grid.Row="3" Margin="23,10,10,92"  Background="Black" Click="button_Click"/>
+            <Button x:Name="button" Content="Write" Foreground="Black" Grid.Column="3" Grid.Row="3" Margin="10,0,10,102"  Background="Gray" Click="button_Click"/>
 
-
-            <GroupBox Grid.Column="1" Foreground="Black" Header="X reel" HorizontalAlignment="Left" Height="41"  Margin="150,66,0,0" Grid.Row="1" VerticalAlignment="Top" Width="105" Grid.ColumnSpan="3">
-                <TextBox x:Name="tbXreel" Margin="0" TextWrapping="Wrap" Text=""  Foreground="Black" Background="{x:Null}" BorderBrush="{x:Null}" IsReadOnly="False"/>
+            <GroupBox Header="file path" Foreground="White" Grid.Column="1" Margin="10,10,0,176" Grid.RowSpan="2" Grid.ColumnSpan="6" >
+                <TextBox x:Name="filePath" Margin="0" TextWrapping="Wrap" Text="C:\Github\Stage-GEII\JeVoisInterface\Data\log.csv"  Foreground="White" Background="{x:Null}" BorderBrush="{x:Null}" IsReadOnly="False"/>
             </GroupBox>
-            <GroupBox Grid.Column="1" Foreground="Black" Header="Y reel" HorizontalAlignment="Left" Height="41"  Margin="150,115,0,0" Grid.Row="1" VerticalAlignment="Top" Width="103" Grid.ColumnSpan="3">
-                <TextBox x:Name="tbYreel" Margin="0" TextWrapping="Wrap" Text=""  Foreground="Black" Background="{x:Null}" BorderBrush="{x:Null}" IsReadOnly="False"/>
+            <GroupBox Grid.Column="1" Foreground="White" Header="X reel" HorizontalAlignment="Left" Height="41"  Margin="150,66,0,0" Grid.Row="1" VerticalAlignment="Top" Width="105" Grid.ColumnSpan="3">
+                <TextBox x:Name="tbXreel" Margin="0" TextWrapping="Wrap" Text=""  Foreground="White" Background="{x:Null}" BorderBrush="{x:Null}" IsReadOnly="False"/>
             </GroupBox>
-            <GroupBox Grid.Column="1" Foreground="Black" Header="Theta" HorizontalAlignment="Left" Height="41"  Margin="150,156,0,0" Grid.Row="1" VerticalAlignment="Top" Width="104" Grid.ColumnSpan="3">
-                <TextBox x:Name="tbTheta" Margin="0" TextWrapping="Wrap" Text="0"  Foreground="Black" Background="{x:Null}" BorderBrush="{x:Null}" IsReadOnly="False" Height="18" VerticalAlignment="Top"/>
+            <GroupBox Grid.Column="1" Foreground="White" Header="Y reel" HorizontalAlignment="Left" Height="41"  Margin="150,115,0,0" Grid.Row="1" VerticalAlignment="Top" Width="103" Grid.ColumnSpan="3">
+                <TextBox x:Name="tbYreel" Margin="0" TextWrapping="Wrap" Text=""  Foreground="White" Background="{x:Null}" BorderBrush="{x:Null}" IsReadOnly="False"/>
+            </GroupBox>
+            <GroupBox Grid.Column="1" Foreground="White" Header="Theta" HorizontalAlignment="Left" Height="41"  Margin="150,156,0,0" Grid.Row="1" VerticalAlignment="Top" Width="104" Grid.ColumnSpan="3">
+                <TextBox x:Name="tbTheta" Margin="0" TextWrapping="Wrap" Text="0"  Foreground="White" Background="{x:Null}" BorderBrush="{x:Null}" IsReadOnly="False" Height="18" VerticalAlignment="Top"/>
             </GroupBox>
 
 

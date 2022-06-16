@@ -48,7 +48,7 @@ namespace JeVoisDecoder
             }
         }
 
-        string jeVoisCurrentFrame = "",ID;
+        string jeVoisCurrentFrame = "";
         List<ArucoLutElement> ArucoLut = new List<ArucoLutElement>();
         double x1, x2, x3, x4, y1, y2, y3, y4, X, Y, W, H;
         char type;
@@ -59,14 +59,12 @@ namespace JeVoisDecoder
             {
                 type = 'D';
                 AnalyzeData(jeVoisCurrentFrame,'D');
-                Console.WriteLine(jeVoisCurrentFrame);
                 jeVoisCurrentFrame = "";
             }
             else if(c == 'N')
             {
                 type = 'N';
                 AnalyzeData(jeVoisCurrentFrame, 'N');
-                Console.WriteLine(jeVoisCurrentFrame);
                 jeVoisCurrentFrame = "";
             }
             jeVoisCurrentFrame += Encoding.UTF8.GetString(new byte[] { c }, 0, 1);
@@ -75,21 +73,11 @@ namespace JeVoisDecoder
         private void Analyze_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog opfd = new OpenFileDialog();
-            if (opfd.ShowDialog() == true)
+            if (opfd.ShowDialog() == true) 
             {
                 ArucoLut = new List<ArucoLutElement>();
                 using (var reader = new StreamReader(opfd.FileName))
                 {
-                    List<int> ThetaAruco = new List<int>();
-                    List<int> x1List = new List<int>();
-                    List<int> x2List = new List<int>();
-                    List<int> x3List = new List<int>();
-                    List<int> x4List = new List<int>();
-                    List<int> y1List = new List<int>();
-                    List<int> y2List = new List<int>();
-                    List<int> y3List = new List<int>();
-                    List<int> y4List = new List<int>();
-
                     while (!reader.EndOfStream)
                     {
                         var line = reader.ReadLine();
@@ -101,25 +89,38 @@ namespace JeVoisDecoder
                         lutElement.yField = int.Parse(values[pos++]);
                         lutElement.thetaField = int.Parse(values[pos++]);
 
-                        double x = int.Parse(values[pos++]);
-                        double y = int.Parse(values[pos++]);
-                        lutElement.pt1 = new PointD(x, y);
-                        x = int.Parse(values[pos++]);
-                        y = int.Parse(values[pos++]);
-                        lutElement.pt2 = new PointD(x, y);
-                        x = int.Parse(values[pos++]);
-                        y = int.Parse(values[pos++]);
-                        lutElement.pt3 = new PointD(x, y);
-                        x = int.Parse(values[pos++]);
-                        y = int.Parse(values[pos++]);
-                        lutElement.pt4 = new PointD(x, y);
+                        if (values.Length == 11) // detail frame
+                        {
+                            double x = int.Parse(values[pos++]);
+                            double y = int.Parse(values[pos++]);
+                            lutElement.pt1 = new PointD(x, y);
+                            x = int.Parse(values[pos++]);
+                            y = int.Parse(values[pos++]);
+                            lutElement.pt2 = new PointD(x, y);
+                            x = int.Parse(values[pos++]);
+                            y = int.Parse(values[pos++]);
+                            lutElement.pt3 = new PointD(x, y);
+                            x = int.Parse(values[pos++]);
+                            y = int.Parse(values[pos++]);
+                            lutElement.pt4 = new PointD(x, y);
 
-                        lutElement.xMeasured = (lutElement.pt1.X + lutElement.pt2.X + lutElement.pt3.X + lutElement.pt4.X) / 4.0;
-                        lutElement.yMeasured = (lutElement.pt1.Y + lutElement.pt2.Y + lutElement.pt3.Y + lutElement.pt4.Y) / 4.0;
+                            lutElement.xMeasured = (lutElement.pt1.X + lutElement.pt2.X + lutElement.pt3.X + lutElement.pt4.X) / 4.0;
+                            lutElement.yMeasured = (lutElement.pt1.Y + lutElement.pt2.Y + lutElement.pt3.Y + lutElement.pt4.Y) / 4.0;
+
+                        }
+                        else if (values.Length == 7) // normal frame
+                        {
+                            lutElement.xMeasured = int.Parse(values[pos++]);
+                            lutElement.yMeasured = int.Parse(values[pos++]);
+                            lutElement.W = int.Parse(values[pos++]);
+                            lutElement.H = int.Parse(values[pos++]);
+                            lutElement.xMeasured += lutElement.W / 2;
+                            lutElement.yMeasured += lutElement.H / 2;
+                        }
 
                         ArucoLut.Add(lutElement);
 
-                        //Génération du symétrique par rapport à l'axe vertical
+                        // Génération du symétrique par rapport à l'axe vertical
 
                         if (lutElement.xField != 0)
                         {
@@ -130,10 +131,6 @@ namespace JeVoisDecoder
                             lutElementSym.xMeasured = -lutElement.xMeasured;
                             lutElementSym.yMeasured = lutElement.yMeasured;
                             lutElementSym.thetaField = 180 - lutElement.thetaField;
-                            lutElementSym.pt1 = new PointD(-lutElement.pt1.X, lutElement.pt1.Y);
-                            lutElementSym.pt2 = new PointD(-lutElement.pt2.X, lutElement.pt2.Y);
-                            lutElementSym.pt3 = new PointD(-lutElement.pt3.X, lutElement.pt3.Y);
-                            lutElementSym.pt4 = new PointD(-lutElement.pt4.X, lutElement.pt4.Y);
 
                             ArucoLut.Add(lutElementSym);
                         }
@@ -143,9 +140,10 @@ namespace JeVoisDecoder
             }
         }
 
-        // frames for normal mode : N2 id X Y W H
-        // frames for detail mode [YOLO] : D2 object:% x1 y1 x2 y2 x3 y3 x4 y4
+        // frames for normal mode : N2 id Xcenter Ycenter W H
+        // frames for detail mode [YOLO] : D2 id x1 y1 x2 y2 x3 y3 x4 y4
         // frames for detail mode [ArUco] : D2 id nb_pts x1 y1 x2 y2 x3 y3 x4 y4
+        // for DNN, id = name:%confidence
         // http://jevois.org/doc/UserSerialStyle.html
 
         private void AnalyzeData(string s, char type)
@@ -163,7 +161,7 @@ namespace JeVoisDecoder
                 case 'D':
                     if (inputArray.Length == 10) // Yolo darknet dnn size = 10 | c++ aruco detector size = 11
                     {
-                        ID = inputArray[1];
+                        string ID = inputArray[1];
                         x1 = double.Parse(inputArray[2]);
                         y1 = double.Parse(inputArray[3]);
                         x2 = double.Parse(inputArray[4]);
@@ -176,19 +174,34 @@ namespace JeVoisDecoder
                         xMeasured = (x1 + x2 + x3 + x4) / 4.0;
                         yMeasured = (y1 + y2 + y3 + y4) / 4.0;
                     }
+                    else
+                    {
+                        Console.WriteLine("size error for detail frame - frame size = " + inputArray.Length);
+                        return;
+                    }
                     break;
 
                 case 'N':
                     if (inputArray.Length == 6)
                     {
-                        ID = inputArray[1];
+                        string[] ID = inputArray[1].Split(':');
+                        string name = ID[0];
+                        string percent = ID[1];
+
+                        //Console.WriteLine(String.Format("name : {0} - % : {1}", name,percent));
+
                         X = double.Parse(inputArray[2]);
                         Y = double.Parse(inputArray[3]);
                         W = double.Parse(inputArray[4]);
                         H = double.Parse(inputArray[5]);
 
-                        xMeasured = X;
-                        yMeasured = Y;
+                        xMeasured = X+W/2;
+                        yMeasured = Y+H/2;
+                    }
+                    else
+                    {
+                        Console.WriteLine("size error for normal frame - frame size = " + inputArray.Length);
+                        return;
                     }
                     break;
 
@@ -196,12 +209,17 @@ namespace JeVoisDecoder
 
             if (ArucoLut.Count > 0)
             {
-                /// On calcule la distance à chaque element de la LUT
+                // On calcule la distance à chaque element de la LUT
                 var ArucoClosestList = ArucoLut.OrderBy(p => Math.Sqrt(Math.Pow(xMeasured - p.xMeasured, 2) + Math.Pow(yMeasured - p.yMeasured, 2))).ToList();
 
                 var closestPoint = ArucoClosestList[0];
                 var closestPoint2 = ArucoClosestList[1];
                 ArucoLutElement closestPoint3 = ArucoClosestList[2];
+
+                //Console.WriteLine(String.Format("Real : ({0},{1}) | Clos1 : ({2},{3}) | Clos2 : ({4},{5}) | Clos3 : ({6},{7})", 
+                //    xMeasured,yMeasured,closestPoint.xMeasured,closestPoint.yMeasured,closestPoint2.xMeasured,
+                //    closestPoint2.yMeasured,closestPoint3.xMeasured,closestPoint3.yMeasured));
+
                 double vectorielProduct;
                 int pos = 2;
                 do
@@ -217,26 +235,24 @@ namespace JeVoisDecoder
                                     closestPoint.yField - closestPoint3.yField });
                     vectorielProduct = (double)AlgebraTools.Cross(V12field, V13field);
                 }
-                while (
-                /// On ne garde pas le 3e pt si les 3 sont alignés
-                vectorielProduct == 0);
+                while (vectorielProduct == 0); // On ne garde pas le 3e pt si les 3 sont alignés
 
-                /// On calcule le gradient de distance mesurée entre le pt le plus proche et le 2e pt le plus proche
+                // On calcule le gradient de distance mesurée entre le pt le plus proche et le 2e pt le plus proche
                 PointD gradient12 = new PointD(
                     closestPoint.xMeasured - closestPoint2.xMeasured,
                     closestPoint.yMeasured - closestPoint2.yMeasured);
 
-                /// On calcule le gradient de distance mesurée entre le pt le plus proche et le 3e pt le plus proche
+                // On calcule le gradient de distance mesurée entre le pt le plus proche et le 3e pt le plus proche
                 PointD gradient13 = new PointD(
                     closestPoint.xMeasured - closestPoint3.xMeasured,
                     closestPoint.yMeasured - closestPoint3.yMeasured);
 
-                /// On calcule l'écart entre le pt le plus proche et le pt détecté
+                // On calcule l'écart entre le pt le plus proche et le pt détecté
                 PointD ecartClosestPoint = new PointD(
                     closestPoint.xMeasured - xMeasured,
                     closestPoint.yMeasured - yMeasured);
 
-                /// On détermine les coeff a et b tq : ecartClosestPoint = a * gradient12 + b * gradient13
+                // On détermine les coeff a et b tq : ecartClosestPoint = a * gradient12 + b * gradient13
                 var M = CreateMatrix.Dense(2, 2, new double[] { gradient12.X, gradient12.Y, gradient13.X, gradient13.Y });
                 var MInv = M.Inverse();
 
@@ -244,20 +260,26 @@ namespace JeVoisDecoder
 
                 var ab = MInv.Multiply(v);
 
-                /// On calcule les coordonnées du pt mesuré dans le terrain
+                // On calcule les coordonnées du pt mesuré dans le terrain
                 PointD posArucoField = new PointD(
                     closestPoint.xField - ab[0] * (closestPoint.xField - closestPoint2.xField) - ab[1] * (closestPoint.xField - closestPoint3.xField),
                     closestPoint.yField - ab[0] * (closestPoint.yField - closestPoint2.yField) - ab[1] * (closestPoint.yField - closestPoint3.yField));
 
-                Console.WriteLine("Pos calculée : " + posArucoField.X.ToString("F1") + " - " + posArucoField.Y.ToString("F1"));
+                //Console.WriteLine("Pos calculée : " + posArucoField.X.ToString("F1") + " | " + posArucoField.Y.ToString("F1"));
+                Console.WriteLine(String.Format("Current center : ({0};{1}) |  Pos calculée : ({2};{3})",
+                    xMeasured, yMeasured, posArucoField.X.ToString("F1"), posArucoField.Y.ToString("F1")));
             }
-
+            else
+            {
+                Console.WriteLine(s);
+            }
         }
 
         private void button_Click(object sender, RoutedEventArgs e)
         {
 
-            string path = "C:\\GitHub\\Stage-GEII\\JeVoisInterface\\Data\\log.csv";
+            //string path = "C:\\GitHub\\Stage-GEII\\JeVoisInterface\\Data\\log.csv";
+            string path = filePath.Text;
 
             string Xreel = tbXreel.Text;
             string Yreel = tbYreel.Text;
@@ -274,7 +296,9 @@ namespace JeVoisDecoder
                     log = Xreel + ";" + Yreel + ";" + Theta + ";" + x1 + ";" + y1 + ";" + x2 + ";" + y2 + ";" + x3 + ";" + y3 + ";" + x4 + ";" + y4;
                     break;
                 case 'N':
-                    log = Xreel + ";" + Yreel + ";" + Theta + ";" + X + ";" + Y + ";" + W + ";" + H;
+                    double Xcalculated = X + W / 2;
+                    double Ycalculated = Y + H / 2;
+                    log = Xreel + ";" + Yreel + ";" + Theta + ";" + Xcalculated + ";" + Ycalculated + ";" + X + ";" + Y + ";" + W + ";" + H;
                     break;
             }
 
@@ -283,7 +307,6 @@ namespace JeVoisDecoder
                 file.WriteLine(log);
             }
         }
-
     }
 
     public class ArucoLutElement
@@ -293,6 +316,8 @@ namespace JeVoisDecoder
         public double thetaField;
         public double xMeasured;
         public double yMeasured;
+        public double W;
+        public double H;
         public PointD pt1;
         public PointD pt2;
         public PointD pt3;
