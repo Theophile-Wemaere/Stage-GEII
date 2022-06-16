@@ -34,7 +34,7 @@ namespace JeVoisDecoder
 
         public MainWindow()
         {
-            serialPort1 = new ReliableSerialPort("COM10", 460800, Parity.None, 8, StopBits.One);
+            serialPort1 = new ReliableSerialPort("COM7", 460800, Parity.None, 8, StopBits.One);
             serialPort1.DataReceived += SerialPort1_DataReceived;
             serialPort1.Open();
         }
@@ -145,16 +145,18 @@ namespace JeVoisDecoder
         // frames for detail mode [ArUco] : D2 id nb_pts x1 y1 x2 y2 x3 y3 x4 y4
         // for DNN, id = name:%confidence
         // http://jevois.org/doc/UserSerialStyle.html
-
+        
+        
+        double xMeasured = 0, yMeasured = 0;
         private void AnalyzeData(string s, char type)
         {
+            string outputString = "";
             string[] inputArray = s.Split(' ');
             for (int i = 0; i < inputArray.Length; i++)
             {
                 inputArray[i] = inputArray[i].Replace('.', ',');
             }
 
-            double xMeasured = 0, yMeasured = 0;
 
             switch (type)
             {
@@ -188,15 +190,24 @@ namespace JeVoisDecoder
                         string name = ID[0];
                         string percent = ID[1];
 
-                        //Console.WriteLine(String.Format("name : {0} - % : {1}", name,percent));
+                        ///Centre 0;0 au centre de l'image
+                        ///Negatif en X à Gauche
+                        ///Negatif en Y en haut
+                        /// La Jevois revoie des coordonnées pourries
+                        /// On récupère en premier le point haut gauche de la Bouding Box
+                        /// Et ensuite, la largeur et hauteur
+                        /// Tout est en pixels
 
-                        X = double.Parse(inputArray[2]);
-                        Y = double.Parse(inputArray[3]);
+                        var XHg = double.Parse(inputArray[2]);
+                        var YHg = double.Parse(inputArray[3]);
                         W = double.Parse(inputArray[4]);
                         H = double.Parse(inputArray[5]);
 
-                        xMeasured = X+W/2;
-                        yMeasured = Y+H/2;
+                        xMeasured = XHg+W/2;
+                        yMeasured = YHg+H/2;
+
+                        outputString = name + " - Confidence : " + percent + " - Center X : " + xMeasured.ToString("N1") + " - Y : " + yMeasured.ToString("N1");
+                        Console.WriteLine(outputString);
                     }
                     else
                     {
@@ -271,7 +282,7 @@ namespace JeVoisDecoder
             }
             else
             {
-                Console.WriteLine(s);
+                //Console.WriteLine(s);
             }
         }
 
@@ -296,9 +307,9 @@ namespace JeVoisDecoder
                     log = Xreel + ";" + Yreel + ";" + Theta + ";" + x1 + ";" + y1 + ";" + x2 + ";" + y2 + ";" + x3 + ";" + y3 + ";" + x4 + ";" + y4;
                     break;
                 case 'N':
-                    double Xcalculated = X + W / 2;
-                    double Ycalculated = Y + H / 2;
-                    log = Xreel + ";" + Yreel + ";" + Theta + ";" + Xcalculated + ";" + Ycalculated + ";" + X + ";" + Y + ";" + W + ";" + H;
+                    double Xcalculated = xMeasured;
+                    double Ycalculated = yMeasured;
+                    log = Xreel + ";" + Yreel + ";" + Theta + ";" + Xcalculated.ToString("N0") + ";" + Ycalculated.ToString("N0") + ";" + X + ";" + Y + ";" + W + ";" + H;
                     break;
             }
 
