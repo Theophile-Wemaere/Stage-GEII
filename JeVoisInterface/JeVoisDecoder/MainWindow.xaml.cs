@@ -52,22 +52,40 @@ namespace JeVoisDecoder
         List<ArucoLutElement> ArucoLut = new List<ArucoLutElement>();
         double x1, x2, x3, x4, y1, y2, y3, y4, X, Y, W, H;
         char type;
+        double xMeasured = 0, yMeasured = 0;
 
         void ProcessJeVoisData(byte c)
         {
             if (c == 'D')
             {
                 type = 'D';
-                AnalyzeData(jeVoisCurrentFrame,'D');
+                AnalyzeData(jeVoisCurrentFrame);
                 jeVoisCurrentFrame = "";
             }
             else if(c == 'N')
             {
                 type = 'N';
-                AnalyzeData(jeVoisCurrentFrame, 'N');
+                AnalyzeData(jeVoisCurrentFrame);
                 jeVoisCurrentFrame = "";
             }
             jeVoisCurrentFrame += Encoding.UTF8.GetString(new byte[] { c }, 0, 1);
+        }
+
+        void AnalyseData(string s)
+        {
+            string[] inputArray = s.Split(' ');
+            for (int i = 0; i < inputArray.Length; i++)
+            {
+                inputArray[i] = inputArray[i].Replace('.', ',');
+            }
+            if(inputArray[1].Contains(':')) 
+            {
+                AnalyseDnn(inputArray);
+            }
+            else
+            {
+                AnalyseAruco(inputArray);
+            }
         }
 
         private void Analyze_Click(object sender, RoutedEventArgs e)
@@ -114,8 +132,6 @@ namespace JeVoisDecoder
                             lutElement.yMeasured = int.Parse(values[pos++]);
                             lutElement.W = int.Parse(values[pos++]);
                             lutElement.H = int.Parse(values[pos++]);
-                            //lutElement.xMeasured += lutElement.W / 2;
-                            //lutElement.yMeasured += lutElement.H / 2;
                         }
 
                         ArucoLut.Add(lutElement);
@@ -146,75 +162,117 @@ namespace JeVoisDecoder
         // for DNN, id = name:%confidence
         // http://jevois.org/doc/UserSerialStyle.html
         
-        
-        double xMeasured = 0, yMeasured = 0;
-        private void AnalyzeData(string s, char type)
+    
+        private void AnalyseDnn(string[] inputArray)
+        {
+            DnnElement elt = new DnnElement();
+            try
+            {
+                if (inputArray.Length == 6)
+                {
+                    string[] ID = inputArray[1].Split(':');
+                    elt.type = ID[0];
+                    elt.confidence = double.Parse(ID[1]);
+
+                    // Centre 0;0 au centre de l'image
+                    // Negatif en X à Gauche
+                    // Negatif en Y en haut
+                    // On récupère en premier le point haut gauche de la Bouding Box
+                    // Et ensuite, la largeur et hauteur
+                    // Tout est en pixels
+
+                    var XHautGauche = double.Parse(inputArray[2]);
+                    var YHautGauche = -double.Parse(inputArray[3]);
+                    elt.widthRefCamera = double.Parse(inputArray[4]);
+                    elt.heightRefCamera = double.Parse(inputArray[5]);
+
+                    elt.xCenterRefCamera = XHautGauche + elt.widthRefCamera / 2;
+                    elt.yCenterRefCamera = YHautGauche - elt.heightRefCamera / 2;
+
+                    var ptCentreRobot = new PointD(0, 1080 * (-0.5 - 1.23));
+
+                    /// Evaluation d'angle avec correction offset en X manuel due au cropping : à améliorer dans le futur
+                    double angleRefImage = Math.Atan2(elt.yCenterRefCamera - ptCentreRobot.Y, elt.xCenterRefCamera - ptCentreRobot.X) - Math.PI / 2;
+                    angleRefImage -= Toolbox.DegToRad(2);
+                    double angleRefCamera = angleRefImage * 45 / 18.4;
+                    
+
+                    /// Evaluation de distance avec correction de distance due à l'écrasement du à l'objectif
+                    double distanceRefImage = Toolbox.Distance(new PointD(elt.xCenterRefCamera, elt.yCenterRefCamera), ptCentreRobot);
+                    elt.distanceRefRobot = Math.Exp((distanceRefImage - 2210) / 105 )+ 0.45;
+                    elt.distanceRefRobot = elt.distanceRefRobot * (1 + (2.8-3.2) / 3.8 * angleRefCamera / Toolbox.DegToRad(45));
+
+                    elt.xRefRobot = _xCameraRefRobot + elt.distanceRefRobot * Math.Cos(_thetaCameraRefRobot + angleRefCamera); 
+                    elt.yRefRobot = _yCameraRefRobot + elt.distanceRefRobot * Math.Sin(_thetaCameraRefRobot + angleRefCamera);
+                    elt.angleRefRobot = angleRefCamera + _thetaCameraRefRobot;
+
+                    string outputString = elt.type + " - Caméra : " + Id +
+                        " - Confidence : " + elt.confidence +
+                        " - angle ref camera : " + Toolbox.RadToDeg(elt.angleRefRobot).ToString("N2") +
+                        " - distance ref robot : " + elt.distanceRefRobot.ToString("N2") +
+                        " - X ref robot : " + elt.xRefRobot.ToString("N2") +
+                        " - Y ref robot : " + elt.yRefRobot.ToString("N2");
+                    Console.WriteLine(outputString);
+
+                    // à 45°
+                    // 2370 = 5m
+                    // 2350 = 4m
+                    // 2340 = 3m
+                    // 2295 = 2m
+                    // 2210 = 1m
+                    // 2000 = 50cm 
+
+                    // à 0°
+                    // 1870 = 0.5m
+                    // 2145 = 1m
+                    // 2256 = 2m
+                    // 2310 = 3m
+                    // 2340 = 4m
+                    // 2354 = 5m
+                }
+            }
+            catch
+            {
+                Console.WriteLine("Erreur d'analyse des datas Jevois");
+            }
+        }
+
+
+        private void AnalyzeAruco(string[] inputArray)
         {
             string outputString = "";
-            string[] inputArray = s.Split(' ');
-            for (int i = 0; i < inputArray.Length; i++)
+            if (inputArray.Length == 11) // Yolo darknet dnn size = 10 | c++ aruco detector size = 11
             {
-                inputArray[i] = inputArray[i].Replace('.', ',');
+                string ID = inputArray[1];
+                x1 = double.Parse(inputArray[3]);
+                y1 = double.Parse(inputArray[4]);
+                x2 = double.Parse(inputArray[5]);
+                y2 = double.Parse(inputArray[6]);
+                x3 = double.Parse(inputArray[7]);
+                y3 = double.Parse(inputArray[8]);
+                x4 = double.Parse(inputArray[8]);
+                y4 = double.Parse(inputArray[10]);
+
+                xMeasured = (x1 + x2 + x3 + x4) / 4.0;
+                yMeasured = (y1 + y2 + y3 + y4) / 4.0;
+
             }
 
 
-            switch (type)
+            if (inputArray.Length == 6)
             {
-                case 'D':
-                    if (inputArray.Length == 10) // Yolo darknet dnn size = 10 | c++ aruco detector size = 11
-                    {
-                        string ID = inputArray[1];
-                        x1 = double.Parse(inputArray[2]);
-                        y1 = double.Parse(inputArray[3]);
-                        x2 = double.Parse(inputArray[4]);
-                        y2 = double.Parse(inputArray[5]);
-                        x3 = double.Parse(inputArray[6]);
-                        y3 = double.Parse(inputArray[7]);
-                        x4 = double.Parse(inputArray[8]);
-                        y4 = double.Parse(inputArray[9]);
+                string ID = inputArray[1],
 
-                        xMeasured = (x1 + x2 + x3 + x4) / 4.0;
-                        yMeasured = (y1 + y2 + y3 + y4) / 4.0;
-                    }
-                    else
-                    {
-                        Console.WriteLine("size error for detail frame - frame size = " + inputArray.Length);
-                        return;
-                    }
-                    break;
+                xMeasured = double.Parse(inputArray[3]);
+                yMeasured = double.Parse(inputArray[4]);
+                W = double.Parse(inputArray[5]);
+                H = double.Parse(inputArray[6]);
 
-                case 'N':
-                    if (inputArray.Length == 6)
-                    {
-                        string[] ID = inputArray[1].Split(':');
-                        string name = ID[0];
-                        string percent = ID[1];
 
-                        ///Centre 0;0 au centre de l'image
-                        ///Negatif en X à Gauche
-                        ///Negatif en Y en haut
-                        /// La Jevois revoie des coordonnées pourries
-                        /// On récupère en premier le point haut gauche de la Bouding Box
-                        /// Et ensuite, la largeur et hauteur
-                        /// Tout est en pixels
 
-                        var XHg = double.Parse(inputArray[2]);
-                        var YHg = double.Parse(inputArray[3]);
-                        W = double.Parse(inputArray[4]);
-                        H = double.Parse(inputArray[5]);
-
-                        xMeasured = XHg+W/2;
-                        yMeasured = YHg+H/2;
-
-                        outputString = name + " - Confidence : " + percent + " - Center X : " + xMeasured.ToString("N1") + " - Y : " + yMeasured.ToString("N1");
-                        Console.WriteLine(outputString);
-                    }
-                    else
-                    {
-                        Console.WriteLine("size error for normal frame - frame size = " + inputArray.Length);
-                        return;
-                    }
-                    break;
+                outputString = "ID : " + ID + " - Center X : " + xMeasured.ToString("N1") + " - Y : " + yMeasured.ToString("N1");
+                Console.WriteLine(outputString);
+            }
 
             }
 
@@ -280,11 +338,8 @@ namespace JeVoisDecoder
                 Console.WriteLine(String.Format("Current center : ({0};{1}) |  Pos calculée : ({2};{3})",
                     xMeasured, yMeasured, posArucoField.X.ToString("F1"), posArucoField.Y.ToString("F1")));
             }
-            else
-            {
-                //Console.WriteLine(s);
-            }
         }
+
 
         private void button_Click(object sender, RoutedEventArgs e)
         {
@@ -333,6 +388,18 @@ namespace JeVoisDecoder
         public PointD pt2;
         public PointD pt3;
         public PointD pt4;
+    }
+
+    public class DnnElement
+    {
+        public double widthRefCamera;
+        public double heightRefCamera;
+        public double xCenterRefCamera;
+        public double yCenterRefCamera;
+        public double xRefRobot;
+        public double yRefRobot;
+        public double distanceRefRobot;
+        public double angleRefRobot;
     }
 
     public class PointD
